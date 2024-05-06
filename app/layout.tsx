@@ -16,6 +16,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      {/* https://twemoji.datsukan.me/ */}
       <link
         rel="icon"
         href="https://cdn.jsdelivr.net/gh/jdecked/twemoji@latest/assets/svg/1f3ae.svg"
