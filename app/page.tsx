@@ -2,6 +2,7 @@
 import { io, Socket } from "socket.io-client";
 import { useEffect, useRef, useState } from "react";
 import { Zen_Kaku_Gothic_New } from "next/font/google";
+import { motion } from "framer-motion";
 
 const Zen_Kaku_Gothic_NewFont = Zen_Kaku_Gothic_New({
   weight: "900",
@@ -75,6 +76,20 @@ export default function Home() {
       console.log(room);
       console.log(sockets);
       const socketNum = sockets.length;
+      if (room === "end") {
+        return;
+      }
+      if (room === "lobby") {
+        setGameState(0);
+        setGame({
+          master: undefined,
+          player: undefined,
+          pin0: [],
+          pin1: [],
+          win: -1,
+        });
+        return;
+      }
       if (socketNum > 2) {
         window.location.reload();
       }
@@ -240,6 +255,12 @@ export default function Home() {
     }
   }
   function showWinner() {
+    if (gameState === 2) {
+      if (game.win === 0 || game.win === 1) {
+        setGameState(3);
+        socket?.emit("join", `end`);
+      }
+    }
     if (game.win === 0) {
       if (game.master === socket?.id) {
         return (
@@ -282,7 +303,8 @@ export default function Home() {
   game.pin1.forEach((pin) => {
     board[pin] = 1;
   });
-
+  const titleword = "マルバツゲーム";
+  titleword.split;
   return (
     <div className="game">
       {process.env.NEXT_PUBLIC_DEBUG === "true" ? "DEBUG MODE" : ""}
@@ -291,7 +313,23 @@ export default function Home() {
       <br />
       {gameState === 0 ? (
         <>
-          <div className=" top-0 bottom-0 left-0 right-0 absolute w-1/3 m-auto h-min min-w-56 max-w-96">
+          <div
+            className={`top-0 bottom-1/2 left-0 right-0 absolute m-auto text-pink-500 max-h-min text-center font-bold text-6xl ${Zen_Kaku_Gothic_NewFont.className}`}
+          >
+            {titleword.split("").map((word, index) => {
+              return (
+                <motion.span
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.5, delay: index * 0.05 }}
+                  key={index}
+                >
+                  {word}
+                </motion.span>
+              );
+            })}
+          </div>
+          <div className="top-0 bottom-0 left-0 right-0 absolute w-1/3 m-auto h-min min-w-56 max-w-96">
             <div
               className={`text-center font-bold text-3xl mb-2 ${Zen_Kaku_Gothic_NewFont.className}`}
             >
@@ -319,25 +357,65 @@ export default function Home() {
         </>
       ) : (
         <>
-          <div className="board">
-            <div className={`turn ${Zen_Kaku_Gothic_NewFont.className}`}>
-              {showTurn()}
-            </div>
-            <div className={`winner ${Zen_Kaku_Gothic_NewFont.className}`}>
-              {showWinner()}
+          {game.win === -1 ? (
+            ""
+          ) : (
+            <>
+              <motion.div
+                initial={{ opacity: 0, y: -100 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ ease: "easeInOut", duration: 0.4 }}
+                className={`winner text-5xl ${Zen_Kaku_Gothic_NewFont.className}`}
+              >
+                {showWinner()}
+              </motion.div>
+
+              <button
+                className="top-0 bottom-0 left-0 right-0 absolute max-w-min max-h-max z-10  m-auto bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-xl font-mono shadow-none"
+                onClick={() => {
+                  console.log("OK");
+                  socket?.emit("join", `lobby`);
+                }}
+              >
+                Retry
+              </button>
+            </>
+          )}
+          <motion.div
+            initial={{ opacity: 0, y: -100 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ ease: "easeInOut", duration: 0.4 }}
+            className="board"
+          >
+            <div
+              className={`turn ${Zen_Kaku_Gothic_NewFont.className} max-h-32`}
+            >
+              <div className="turntext w-full mb-2 text-center">
+                {showTurn()}
+              </div>
             </div>
             {[...Array(9)].map((_, i) => (
               <div key={i} className="cell" onClick={() => onCellClick(i)}>
                 {board[i] === -1 ? (
                   ""
                 ) : board[i] === 0 ? (
-                  <div className="maru" />
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ ease: "easeInOut", duration: 0.4 }}
+                    className="maru"
+                  />
                 ) : (
-                  <div className="batu" />
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ ease: "easeInOut", duration: 0.4 }}
+                    className="batu"
+                  />
                 )}
               </div>
             ))}
-          </div>
+          </motion.div>
         </>
       )}
     </div>
