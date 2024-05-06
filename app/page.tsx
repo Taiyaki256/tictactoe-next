@@ -1,113 +1,345 @@
-import Image from "next/image";
+"use client";
+import { io, Socket } from "socket.io-client";
+import { useEffect, useRef, useState } from "react";
+import { Zen_Kaku_Gothic_New } from "next/font/google";
+
+const Zen_Kaku_Gothic_NewFont = Zen_Kaku_Gothic_New({
+  weight: "900",
+  subsets: ["latin"],
+});
+let url =
+  process.env.NEXT_PUBLIC_DEBUG === "true"
+    ? "http://localhost:3000"
+    : "https://websocket-deno.deno.dev";
+
+function useSocket(url: string) {
+  const [socket, setSocket] = useState<Socket>();
+
+  useEffect(() => {
+    console.log("connecting");
+    const socket: Socket = io(url, {
+      path: "/socket.io/",
+      transports: ["websocket", "polling"],
+      autoConnect: true,
+      reconnection: true,
+    });
+
+    setSocket(socket);
+
+    return () => {
+      console.log("disconnecting");
+      socket.disconnect();
+    };
+
+    // should only run once and not on every re-render,
+    // so pass an empty array
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return socket;
+}
 
 export default function Home() {
+  const [connected, setConnected] = useState(false);
+  const [gameState, setGameState] = useState(0);
+  const [gameIndex, setGameIndex] = useState("");
+  let socket = useSocket(url);
+  interface game {
+    master: undefined | string;
+    player: undefined | number;
+    pin0: number[];
+    pin1: number[];
+    win: number;
+  }
+  const [game, setGame] = useState<game>({
+    master: undefined,
+    player: undefined,
+    pin0: [],
+    pin1: [],
+    win: -1,
+  });
+
+  useEffect(() => {
+    function onConnect() {
+      console.log("connected");
+      setConnected(true);
+    }
+    function onDisconnect() {
+      console.log("disconnected");
+      setConnected(false);
+    }
+    function onError(error: any) {
+      console.log(error);
+    }
+    function onJoinSuccessful(room: any, sockets: any) {
+      console.log(room);
+      console.log(sockets);
+      const socketNum = sockets.length;
+      if (socketNum > 2) {
+        window.location.reload();
+      }
+      if (gameState === 0) {
+        if (socketNum === 1) {
+          //一人目だったら、待機
+          setGameState(1);
+        } else if (socketNum === 2) {
+          //二人目だったら
+          setGameState(2);
+          let gameInfo: game = {
+            master: socket?.id,
+            player: 0, //0: master 1: another
+            pin0: [],
+            pin1: [],
+            win: -1,
+          };
+          setGame(gameInfo);
+          socket?.emit("broadcast", gameInfo);
+        }
+      }
+    }
+    function onBroadcast(message: any, from: any) {
+      console.log("on broadcast");
+      console.log(message);
+      if (gameState === 1) {
+        setGameState(2);
+        setGame(message);
+      } else if (gameState === 2) {
+        setGame(message);
+      }
+    }
+    if (socket) {
+      socket.on("connect", () => onConnect());
+      socket.on("disconnect", () => onDisconnect());
+      socket.on("error", (error) => onError(error));
+      socket.on("joinSuccessful", (room, sockets) =>
+        onJoinSuccessful(room, sockets)
+      );
+      socket.on("broadcast", (message, from) => onBroadcast(message, from));
+    }
+    return () => {
+      socket?.off("connect", onConnect);
+      socket?.off("disconnect", onDisconnect);
+      socket?.off("error", onError);
+      socket?.off("JoinSuccessful", (room, socketNum) =>
+        onJoinSuccessful(room, socketNum)
+      );
+      socket?.off("broadcast", (message, from) => onBroadcast(message, from));
+    };
+  }, [gameState, socket]);
+
+  function checkWin(pin0: number[], pin1: number[]) {
+    let board = [-1, -1, -1, -1, -1, -1, -1, -1, -1];
+    pin0.forEach((pin) => {
+      board[pin] = 0;
+    });
+    pin1.forEach((pin) => {
+      board[pin] = 1;
+    });
+    // vertically
+    let winner = -1;
+    for (let i = 0; i < 3; i++) {
+      let p0 = 0;
+      let p1 = 0;
+      for (let j = 0; j < 3; j++) {
+        if (pin0.findIndex((a) => a === i + j * 3) !== -1) p0++;
+        if (pin1.findIndex((a) => a === i + j * 3) !== -1) p1++;
+      }
+      if (p0 === 3) winner = 0;
+      if (p1 === 3) winner = 1;
+    }
+    // horizontal
+    for (let i = 0; i < 3; i++) {
+      let p0 = 0;
+      let p1 = 0;
+      for (let j = 0; j < 3; j++) {
+        if (pin0.findIndex((a) => a === i * 3 + j) !== -1) p0++;
+        if (pin1.findIndex((a) => a === i * 3 + j) !== -1) p1++;
+      }
+      if (p0 === 3) winner = 0;
+      if (p1 === 3) winner = 1;
+    }
+    // naname
+    let ch = [0, 4, 8, 2, 4, 6];
+    for (let i = 0; i < 2; i++) {
+      let p0 = 0;
+      let p1 = 0;
+      for (let j = 0; j < 3; j++) {
+        if (pin0.findIndex((a) => a === ch[i * 3 + j]) !== -1) p0++;
+        if (pin1.findIndex((a) => a === ch[i * 3 + j]) !== -1) p1++;
+      }
+      if (p0 === 3) winner = 0;
+      if (p1 === 3) winner = 1;
+    }
+    return winner;
+  }
+
+  function onCellClick(num: number) {
+    console.log(num);
+    if (gameState === 2) {
+      let check = game.pin0.findIndex((pin) => {
+        return pin === num;
+      });
+      if (check !== -1) return;
+      check = game.pin1.findIndex((pin) => {
+        return pin === num;
+      });
+      if (check !== -1) return;
+      if (game.win !== -1) return;
+      if (game.master === socket?.id) {
+        if (game.player === 0) {
+          let mypin = game.pin0;
+          mypin.push(num);
+          if (mypin.length > 3) {
+            mypin.shift();
+          }
+
+          let gameInfo = {
+            master: game.master,
+            player: 1,
+            pin0: mypin,
+            pin1: game.pin1,
+            win: checkWin(mypin, game.pin1),
+          };
+          socket?.emit("broadcast", gameInfo);
+        }
+      } else {
+        if (game.player === 1) {
+          let mypin = game.pin1;
+          mypin.push(num);
+          if (mypin.length > 3) {
+            mypin.shift();
+          }
+
+          let gameInfo = {
+            master: game.master,
+            player: 0,
+            pin0: game.pin0,
+            pin1: mypin,
+            win: checkWin(game.pin0, mypin),
+          };
+          socket?.emit("broadcast", gameInfo);
+        }
+      }
+    }
+    return;
+  }
+  function showTurn() {
+    if (game.master === undefined) return "対戦相手を待っています";
+    if (game.master === socket?.id) {
+      if (game.player === 0) {
+        return "あなたのターンです";
+      } else {
+        return "相手のターンです";
+      }
+    } else if (game.master !== socket?.id) {
+      if (game.player === 1) {
+        return "あなたのターンです";
+      } else {
+        return "相手のターンです";
+      }
+    }
+  }
+  function showWinner() {
+    if (game.win === 0) {
+      if (game.master === socket?.id) {
+        return (
+          <>
+            あなたの勝利です！
+            <br />
+          </>
+        );
+      } else {
+        return (
+          <>
+            対戦相手の勝利です....
+            <br />
+          </>
+        );
+      }
+    } else if (game.win === 1) {
+      if (game.master === socket?.id) {
+        return (
+          <>
+            対戦相手の勝利です....
+            <br />
+          </>
+        );
+      } else {
+        return (
+          <>
+            あなたの勝利です！
+            <br />
+          </>
+        );
+      }
+    }
+    return <></>;
+  }
+  let board = [-1, -1, -1, -1, -1, -1, -1, -1, -1];
+  game.pin0.forEach((pin) => {
+    board[pin] = 0;
+  });
+  game.pin1.forEach((pin) => {
+    board[pin] = 1;
+  });
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">app/page.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:size-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
+    <div className="game">
+      {process.env.NEXT_PUBLIC_DEBUG === "true" ? "DEBUG MODE" : ""}
+      <br />
+      {connected ? "Connected" : "Disconnected"}
+      <br />
+      {gameState === 0 ? (
+        <>
+          <div className=" top-0 bottom-0 left-0 right-0 absolute w-1/3 m-auto h-min min-w-56 max-w-96">
+            <div
+              className={`text-center font-bold text-3xl mb-2 ${Zen_Kaku_Gothic_NewFont.className}`}
+            >
+              ルーム番号
+            </div>
+            <input
+              className="shadow appearance-none border rounded w-3/4 py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+              type="text"
+              placeholder="room number"
+              value={gameIndex}
+              onChange={(e) => {
+                setGameIndex(e.target.value);
+              }}
             />
-          </a>
-        </div>
-      </div>
-
-      <div className="relative z-[-1] flex place-items-center before:absolute before:h-[300px] before:w-full before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-full after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 sm:before:w-[480px] sm:after:w-[240px] before:lg:h-[360px]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
-
-      <div className="mb-32 grid text-center lg:mb-0 lg:w-full lg:max-w-5xl lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Docs{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
-
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Learn{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Templates{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-sm opacity-50">
-            Explore starter templates for Next.js.
-          </p>
-        </a>
-
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className="mb-3 text-2xl font-semibold">
-            Deploy{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className="m-0 max-w-[30ch] text-balance text-sm opacity-50">
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
+            <button
+              className="bg-blue-500 hover:bg-blue-700 text-white w-1/4 font-bold py-2 px-4 rounded"
+              onClick={() => {
+                console.log("joining " + gameIndex);
+                socket?.emit("join", `tictactoe-${gameIndex}`);
+              }}
+            >
+              join
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="board">
+            <div className={`turn ${Zen_Kaku_Gothic_NewFont.className}`}>
+              {showTurn()}
+            </div>
+            <div className={`winner ${Zen_Kaku_Gothic_NewFont.className}`}>
+              {showWinner()}
+            </div>
+            {[...Array(9)].map((_, i) => (
+              <div key={i} className="cell" onClick={() => onCellClick(i)}>
+                {board[i] === -1 ? (
+                  ""
+                ) : board[i] === 0 ? (
+                  <div className="maru" />
+                ) : (
+                  <div className="batu" />
+                )}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
   );
 }
