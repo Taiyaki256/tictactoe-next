@@ -1,50 +1,19 @@
 "use client";
-import { io, Socket } from "socket.io-client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Zen_Kaku_Gothic_New } from "next/font/google";
 import { motion } from "framer-motion";
+import { socket } from "./socket";
 
 const Zen_Kaku_Gothic_NewFont = Zen_Kaku_Gothic_New({
   weight: "900",
   subsets: ["latin"],
 });
-let url =
-  process.env.NEXT_PUBLIC_DEBUG === "true"
-    ? "http://localhost:3000"
-    : "https://websocket-deno.deno.dev";
-
-function useSocket(url: string) {
-  const [socket, setSocket] = useState<Socket>();
-
-  useEffect(() => {
-    console.log("connecting");
-    const socket: Socket = io(url, {
-      path: "/socket.io/",
-      transports: ["websocket", "polling"],
-      autoConnect: true,
-      reconnection: true,
-    });
-
-    setSocket(socket);
-
-    return () => {
-      console.log("disconnecting");
-      socket.disconnect();
-    };
-
-    // should only run once and not on every re-render,
-    // so pass an empty array
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  return socket;
-}
 
 export default function Home() {
   const [connected, setConnected] = useState(false);
   const [gameState, setGameState] = useState(0);
   const [gameIndex, setGameIndex] = useState("");
-  let socket = useSocket(url);
+
   interface game {
     master: undefined | string;
     player: undefined | number;
@@ -75,6 +44,8 @@ export default function Home() {
     function onJoinSuccessful(room: any, sockets: any) {
       console.log(room);
       console.log(sockets);
+      console.log(gameState);
+      console.log("join successful");
       const socketNum = sockets.length;
       if (room === "end") {
         return;
@@ -115,6 +86,8 @@ export default function Home() {
     function onBroadcast(message: any, from: any) {
       console.log("on broadcast");
       console.log(message);
+      console.log(from);
+      console.log(gameState);
       if (gameState === 1) {
         setGameState(2);
         setGame(message);
@@ -123,24 +96,20 @@ export default function Home() {
       }
     }
     if (socket) {
-      socket.on("connect", () => onConnect());
-      socket.on("disconnect", () => onDisconnect());
-      socket.on("error", (error) => onError(error));
-      socket.on("joinSuccessful", (room, sockets) =>
-        onJoinSuccessful(room, sockets)
-      );
-      socket.on("broadcast", (message, from) => onBroadcast(message, from));
+      socket.on("connect", onConnect);
+      socket.on("disconnect", onDisconnect);
+      socket.on("error", onError);
+      socket.on("joinSuccessful", onJoinSuccessful);
+      socket.on("broadcast", onBroadcast);
     }
     return () => {
-      socket?.off("connect", onConnect);
-      socket?.off("disconnect", onDisconnect);
-      socket?.off("error", onError);
-      socket?.off("JoinSuccessful", (room, socketNum) =>
-        onJoinSuccessful(room, socketNum)
-      );
-      socket?.off("broadcast", (message, from) => onBroadcast(message, from));
+      socket.off("connect", onConnect);
+      socket.off("disconnect", onDisconnect);
+      socket.off("error", onError);
+      socket.off("joinSuccessful", onJoinSuccessful);
+      socket.off("broadcast", onBroadcast);
     };
-  }, [gameState, socket]);
+  }, [gameState]);
 
   function checkWin(pin0: number[], pin1: number[]) {
     let board = [-1, -1, -1, -1, -1, -1, -1, -1, -1];
@@ -307,8 +276,14 @@ export default function Home() {
   titleword.split;
   return (
     <div className="game">
-      {process.env.NEXT_PUBLIC_DEBUG === "true" ? "DEBUG MODE" : ""}
-      <br />
+      {process.env.NEXT_PUBLIC_DEBUG === "true" ? (
+        <>
+          DEBUG MODE
+          <br />
+        </>
+      ) : (
+        <></>
+      )}
       {connected ? "Connected" : "Disconnected"}
       <br />
       {gameState === 0 ? (
