@@ -276,7 +276,7 @@ export default function Home() {
   const titleword = "マルバツゲーム";
   titleword.split;
   return (
-    <motion.div className="game bg-gradient-to-br from-cyan-200 from-10% via-cyan-300 via-50% to-cyan-500 to-100%">
+    <motion.div className="game">
       <span className="text-pretty ">
         {process.env.NEXT_PUBLIC_DEBUG === "true" ? (
           <>
