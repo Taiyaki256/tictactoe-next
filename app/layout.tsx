@@ -24,7 +24,7 @@ export default function RootLayout({
       <body
         className={
           inter.className +
-          "bg-gradient-to-br from-cyan-200 from-10% via-cyan-300 via-50% to-cyan-500 to-100% "
+          " bg-gradient-to-br from-lime-200/60 from-10% via-emerald-300 via-50% to-cyan-500 to-100% "
         }
       >
         {children}
