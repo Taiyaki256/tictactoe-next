@@ -363,7 +363,7 @@ export default function Home() {
               </motion.div>
 
               <button
-                className="top-0 bottom-0 left-0 right-0 absolute max-w-min max-h-max z-10  m-auto bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-xl font-mono shadow-none"
+                className="top-0 bottom-0 left-0 right-0 absolute max-w-min max-h-max z-10 text-2xl   m-auto bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-xl font-mono drop-shadow-lg shadow-lg"
                 onClick={() => {
                   console.log("OK");
                   socket?.emit("join", `lobby`);
@@ -381,8 +381,15 @@ export default function Home() {
             rounded-md border border-gray-200/30 shadow-lg"
           >
             <div
-              className={`turn ${Zen_Kaku_Gothic_NewFont.className} max-h-32`}
+              className={`turn ${Zen_Kaku_Gothic_NewFont.className}  max-h-24`}
             >
+              あなたは
+              {game.master === socket?.id ? (
+                <span className="text-red-500">○</span>
+              ) : (
+                <span className="text-indigo-500">x</span>
+              )}
+              です
               <div className="turntext w-full mb-2 text-center">
                 {showTurn()}
               </div>
