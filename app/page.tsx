@@ -289,12 +289,12 @@ export default function Home() {
         {/* {connected ? "Connected" : "Disconnected"} */}
         {connected ? (
           <>
-            <BsCheckLg className="ml-2 mt-2 text-green-500" size={40} />
+            <BsCheckLg className="pl-2 pt-2 text-green-500" size={40} />
           </>
         ) : (
           <>
             <BsExclamationTriangle
-              className="ml-2 mt-2 text-orange-400"
+              className="pl-2 pt-2 text-orange-400"
               size={40}
             />
           </>
