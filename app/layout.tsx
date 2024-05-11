@@ -21,6 +21,7 @@ export default function RootLayout({
         rel="icon"
         href="https://cdn.jsdelivr.net/gh/jdecked/twemoji@latest/assets/svg/1f3ae.svg"
       />
+      <meta name="viewport" content="initial-scale=1, viewport-fit=cover" />
       <body
         className={
           inter.className +
