@@ -8,7 +8,8 @@ let url =
 
 export const socket = io(url, {
   path: "/socket.io/",
-  transports: ["websocket", "polling"],
+  transports: ["websocket", "polling", "webtransport"],
   autoConnect: true,
   reconnection: true,
+  withCredentials: true,
 });

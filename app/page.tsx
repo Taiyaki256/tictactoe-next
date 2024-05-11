@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Zen_Kaku_Gothic_New } from "next/font/google";
 import { motion } from "framer-motion";
 import { socket } from "./socket";
+import { BsCheckLg, BsExclamationTriangle } from "react-icons/bs";
 
 const Zen_Kaku_Gothic_NewFont = Zen_Kaku_Gothic_New({
   weight: "900",
@@ -78,7 +79,7 @@ export default function Home() {
             pin1: [],
             win: -1,
           };
-          setGame(gameInfo);
+          // setGame(gameInfo);
           socket?.emit("broadcast", gameInfo);
         }
       }
@@ -275,25 +276,40 @@ export default function Home() {
   const titleword = "マルバツゲーム";
   titleword.split;
   return (
-    <div className="game">
-      {process.env.NEXT_PUBLIC_DEBUG === "true" ? (
-        <>
-          DEBUG MODE
-          <br />
-        </>
-      ) : (
-        <></>
-      )}
-      {connected ? "Connected" : "Disconnected"}
+    <motion.div className="game bg-gradient-to-br from-cyan-200 from-10% via-cyan-300 via-50% to-cyan-500 to-100%">
+      <span className="text-pretty ">
+        {process.env.NEXT_PUBLIC_DEBUG === "true" ? (
+          <>
+            DEBUG MODE
+            <br />
+          </>
+        ) : (
+          <></>
+        )}
+        {/* {connected ? "Connected" : "Disconnected"} */}
+        {connected ? (
+          <>
+            <BsCheckLg className="ml-2 mt-2 text-green-500" size={40} />
+          </>
+        ) : (
+          <>
+            <BsExclamationTriangle
+              className="ml-2 mt-2 text-orange-400"
+              size={40}
+            />
+          </>
+        )}
+      </span>
       <br />
       {gameState === 0 ? (
         <>
           <div
-            className={`top-0 bottom-1/2 left-0 right-0 absolute m-auto text-pink-500 max-h-min text-center font-bold text-6xl ${Zen_Kaku_Gothic_NewFont.className}`}
+            className={`top-0 bottom-1/2 left-0 right-0 absolute m-auto text-pretty text-pink-500 max-h-min text-center font-bold text-5xl md:text-7xl ${Zen_Kaku_Gothic_NewFont.className}`}
           >
             {titleword.split("").map((word, index) => {
               return (
                 <motion.span
+                  className=" drop-shadow-md"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.5, delay: index * 0.05 }}
@@ -320,7 +336,8 @@ export default function Home() {
               }}
             />
             <button
-              className="bg-blue-500 hover:bg-blue-700 text-white w-1/4 font-bold py-2 px-4 rounded"
+              className="bg-blue-500 hover:bg-blue-700 text-white w-1/4 font-bold py-2 px-4 rounded
+              shadow-sm shadow-blue-400"
               onClick={() => {
                 console.log("joining " + gameIndex);
                 socket?.emit("join", `tictactoe-${gameIndex}`);
@@ -360,7 +377,8 @@ export default function Home() {
             initial={{ opacity: 0, y: -100 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ ease: "easeInOut", duration: 0.4 }}
-            className="board"
+            className="board
+            rounded-md border border-gray-200/30 shadow-lg"
           >
             <div
               className={`turn ${Zen_Kaku_Gothic_NewFont.className} max-h-32`}
@@ -393,6 +411,6 @@ export default function Home() {
           </motion.div>
         </>
       )}
-    </div>
+    </motion.div>
   );
 }
