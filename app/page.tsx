@@ -72,6 +72,7 @@ export default function Home() {
         } else if (socketNum === 2) {
           //二人目だったら
           setGameState(2);
+          console.log("setgame2");
           let gameInfo: game = {
             master: socket?.id,
             player: 0, //0: master 1: another
@@ -80,6 +81,7 @@ export default function Home() {
             win: -1,
           };
           // setGame(gameInfo);
+
           socket?.emit("broadcast", gameInfo);
         }
       }
@@ -89,6 +91,11 @@ export default function Home() {
       console.log(message);
       console.log(from);
       console.log(gameState);
+      console.log(socket?.id);
+      if (from === socket?.id && gameState === 0) {
+        setGameState(2);
+        setGame(message);
+      }
       if (gameState === 1) {
         setGameState(2);
         setGame(message);
@@ -96,12 +103,19 @@ export default function Home() {
         setGame(message);
       }
     }
+    function onJoinMatchRoomSuccessful(lobby: any, playerNum: any) {
+      console.log(lobby);
+      console.log(playerNum);
+      console.log("join match room successful");
+      setGameState(1);
+    }
     if (socket) {
       socket.on("connect", onConnect);
       socket.on("disconnect", onDisconnect);
       socket.on("error", onError);
       socket.on("joinSuccessful", onJoinSuccessful);
       socket.on("broadcast", onBroadcast);
+      socket.on("joinMatchRoomSuccessful", onJoinMatchRoomSuccessful);
     }
     return () => {
       socket.off("connect", onConnect);
@@ -109,6 +123,7 @@ export default function Home() {
       socket.off("error", onError);
       socket.off("joinSuccessful", onJoinSuccessful);
       socket.off("broadcast", onBroadcast);
+      socket.off("joinMatchRoomSuccessful", onJoinMatchRoomSuccessful);
     };
   }, [gameState]);
 
@@ -345,6 +360,16 @@ export default function Home() {
             >
               join
             </button>
+            <button
+              className="bg-pink-400 hover:bg-pink-600 text-white w-full mt-2 font-bold py-2 px-4 rounded
+              shadow-sm shadow-blue-400"
+              onClick={() => {
+                console.log("matching");
+                socket?.emit("joinMatchRoom", `match-2-tictactoe`);
+              }}
+            >
+              Matching
+            </button>
           </div>
         </>
       ) : (
@@ -381,19 +406,28 @@ export default function Home() {
             rounded-md border border-gray-200/30 shadow-lg"
           >
             <div
-              className={`turn ${Zen_Kaku_Gothic_NewFont.className}  max-h-24`}
+              className={`turn ${Zen_Kaku_Gothic_NewFont.className} min-h-28 max-h-32`}
             >
-              あなたは
-              {game.master === socket?.id ? (
-                <span className="text-red-500">○</span>
+              {game.master === undefined ? (
+                <></>
               ) : (
-                <span className="text-indigo-500">x</span>
+                <>
+                  <div>
+                    あなたは
+                    {game.master === socket?.id ? (
+                      <span className="text-red-500">○</span>
+                    ) : (
+                      <span className="text-indigo-500">x</span>
+                    )}
+                    です
+                  </div>
+                </>
               )}
-              です
               <div className="turntext w-full mb-2 text-center">
                 {showTurn()}
               </div>
             </div>
+
             {[...Array(9)].map((_, i) => (
               <div key={i} className="cell" onClick={() => onCellClick(i)}>
                 {board[i] === -1 ? (
